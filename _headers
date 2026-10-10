@@ -1,0 +1,12 @@
+# SystemOnline's App Store reads the index from another origin.
+/*
+  Access-Control-Allow-Origin: *
+
+# A publish shows at once.
+/index.json
+  Cache-Control: no-cache
+
+# An app file's path never changes, and nothing between may re-encode it:
+# its chunks are the application.
+/apps/*
+  Cache-Control: public, max-age=31536000, immutable, no-transform
