@@ -5,9 +5,8 @@
  * hand them in.
  */
 
-import { readAppFile } from 'vintage-frames/shell/pure'
-import type { AppManifest } from 'vintage-frames/shell/pure'
-import { compareVersions, isVersion } from './versions.ts'
+import { compareVersions, inspectAppFile } from 'system-online-sdk/pure'
+import type { AppManifest } from 'system-online-sdk/pure'
 
 /** The listing's own format. A store refuses one it doesn't know. */
 export const LISTING_FORMAT = 1
@@ -28,7 +27,11 @@ export interface ListedVersion {
   version: string
   name: string
   author: string
+  /** Only when its manifest has one. */
+  description?: string
   requires: string
+  /** The app API level it was built at, which a store chooses a build by. */
+  api: number
   /** Its 32 × 32 icon, a `data:` URL. */
   icon: string
   /** The app file, relative to index.json. */
@@ -54,8 +57,8 @@ const FILED = /^apps\/([^/.][^/]*)\/([^/.][^/]*)\/([^/.][^/]*\.png)$/
 /**
  * The listing of `files`, or a line for each file it refuses, naming the
  * file: one that isn't at apps/<id>/<version>/<Name>.png, isn't an app
- * file, has a version that isn't one, isn't at its manifest's path, or is a
- * second file for one id and version.
+ * file (with the SDK reader's reason), isn't at its manifest's path, or is
+ * a second file for one id and version.
  */
 export async function listingOf(files: readonly AppFileEntry[]): Promise<Listing | string[]> {
   const refused: string[] = []
@@ -67,16 +70,12 @@ export async function listingOf(files: readonly AppFileEntry[]): Promise<Listing
       refused.push(`${path}: an app file is filed at apps/<id>/<version>/<Name>.png`)
       continue
     }
-    const file = await readAppFile(bytes)
-    if (!file) {
-      refused.push(`${path}: it isn't an app file`)
+    const file = await inspectAppFile(bytes)
+    if (typeof file === 'string') {
+      refused.push(`${path}: it isn't an app file: ${file}`)
       continue
     }
-    const { id, name, version, author, requires, icon } = file.manifest
-    if (!isVersion(version)) {
-      refused.push(`${path}: its version, ${version}, is not a version`)
-      continue
-    }
+    const { id, name, version, author, description, requires, api, icon } = file.manifest
     if (path !== pathOf(file.manifest)) {
       refused.push(`${path}: it is ${name} ${version} (${id}), filed at ${pathOf(file.manifest)}`)
       continue
@@ -92,7 +91,9 @@ export async function listingOf(files: readonly AppFileEntry[]): Promise<Listing
       version,
       name,
       author,
+      ...(description ? { description } : {}),
       requires,
+      api,
       icon,
       file: path.split('/').map(encodeURIComponent).join('/'),
       bytes: bytes.length,

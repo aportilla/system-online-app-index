@@ -1,11 +1,11 @@
 // The listing (scripts/listing.ts): a folder of app files reads to the
 // listing, and every file the index can't hold is refused, named. The files
-// are written here by the kit's own writer.
+// are written here by the SDK's own writer.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
-import { writeAppFile } from 'vintage-frames/build'
-import { APP_FILE_FORMAT } from 'vintage-frames/shell/pure'
+import { writeAppFile } from 'system-online-sdk/build'
+import { APP_API, APP_FILE_FORMAT } from 'system-online-sdk/pure'
 
 import { listingOf, pathOf } from '../scripts/listing.ts'
 
@@ -19,8 +19,10 @@ const manifest = (fields) => ({
   id: 'meteors',
   name: 'Meteors',
   version: '0.1.0',
-  requires: '^0.17.0',
+  requires: '^0.2.0',
+  api: APP_API,
   author: 'Adam Portilla',
+  description: 'An Asteroids-style game.',
   icon: ICON,
   ...fields,
 })
@@ -42,7 +44,8 @@ async function assertRefused(files, named) {
 }
 
 test('a folder of app files reads to the listing: applications by name, versions newest first', async () => {
-  const newest = await filed({ version: '0.10.0', requires: '^0.18.0' })
+  // Built at a level past this SDK's: the index lists every build, and the store chooses.
+  const newest = await filed({ version: '0.10.0', requires: '^0.3.0', api: APP_API + 1 })
   const listing = await listingOf([
     await filed({ version: '0.2.0' }),
     newest,
@@ -61,7 +64,9 @@ test('a folder of app files reads to the listing: applications by name, versions
     version: '0.10.0',
     name: 'Meteors',
     author: 'Adam Portilla',
-    requires: '^0.18.0',
+    description: 'An Asteroids-style game.',
+    requires: '^0.3.0',
+    api: APP_API + 1,
     icon: ICON,
     file: 'apps/meteors/0.10.0/Meteors.png',
     bytes: newest.bytes.length,
@@ -72,6 +77,11 @@ test('a folder of app files reads to the listing: applications by name, versions
 test("a version's file is a URL relative to index.json", async () => {
   const listing = await listingOf([await filed({ id: 'desktop-patterns', name: 'Desktop Patterns' })])
   assert.equal(listing.apps[0].versions[0].file, 'apps/desktop-patterns/0.1.0/Desktop%20Patterns.png')
+})
+
+test('a version whose manifest has no description is listed without one', async () => {
+  const listing = await listingOf([await filed({ description: undefined })])
+  assert.equal('description' in listing.apps[0].versions[0], false)
 })
 
 test('a release comes after its prereleases, and numeric identifiers go by value', async () => {
@@ -118,10 +128,6 @@ test("a file whose manifest isn't its path's is refused", async () => {
     ],
     ['apps/meteors/0.1.0/Meteors.png', 'apps/meteors/0.2.0/Meteors.png', 'apps/meteors/0.4.0/Meteors.png']
   )
-})
-
-test("a file whose version isn't a version is refused", async () => {
-  await assertRefused([await filed({ version: '1.0' })], ['apps/meteors/1.0/Meteors.png'])
 })
 
 test('a second file for one id and version is refused', async () => {

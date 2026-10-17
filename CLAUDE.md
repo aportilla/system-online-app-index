@@ -4,7 +4,8 @@ The index of SystemOnline's applications (the sibling `system-online` repo;
 its `docs/app-store-plan.md` §3.1 is the design): every published app file
 under `apps/`, and `index.json`, built from them into `dist/`.
 SystemOnline's App Store reads it from another origin. An app file's format
-is the `vintage-frames` kit's, whose `docs/APP-FILES.md` is the guide.
+is `system-online-sdk`'s, whose `docs/APP-FILES.md` is the guide
+(`../system-online-sdk/docs/` in a checkout beside this one).
 
 ## Commands
 
@@ -21,8 +22,9 @@ is the `vintage-frames` kit's, whose `docs/APP-FILES.md` is the guide.
 Unit tests only, for the build's pure half, `scripts/listing.ts`
 (`test/*.test.mjs`, run by `node --test`, importing the TypeScript source
 through Node's type stripping). The files under test are written in the
-test by the kit's own `writeAppFile`. Nothing asserts copy: a refusal is
-checked for naming its file.
+test by the SDK's own `writeAppFile`, which won't write a manifest its
+reader refuses. Nothing asserts copy: a refusal is checked for naming its
+file.
 
 ## Invariants — don't break, don't re-litigate
 
@@ -31,13 +33,12 @@ checked for naming its file.
   each file for a year by its path.
 - **The listing is built from the files**, never written by hand: each
   manifest is the source of truth.
-- **The kit reads the files.** The scripts import
-  `vintage-frames/shell/pure` only, and the tests `vintage-frames/build`
-  as well, for writing files; never a deep path into its `dist/`. What the
-  index needs and the kit doesn't do is a kit change, asked for in the
-  kit's `feature-requests/<name>.md`. `scripts/versions.ts` is a copy of
-  the kit's version comparison until its `store-helpers.md` ships, and then
-  goes.
+- **The SDK reads the files.** The scripts import `system-online-sdk/pure`
+  only, and the tests `system-online-sdk/build` as well, for writing
+  files; never a deep path into its `dist/`. vintage-frames comes in as
+  the SDK's peer, and nothing here imports it. What the index needs and
+  the SDK doesn't do is an SDK change, asked for in the SDK's
+  `feature-requests/<name>.md`.
 - **Nothing re-encodes an app file**: its chunks are the application.
 - `dist/` is a build output — regenerate, don't hand-edit.
 - Comments are short and direct: label a section or state a non-obvious

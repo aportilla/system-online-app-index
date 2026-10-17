@@ -8,7 +8,7 @@
 import { existsSync } from 'node:fs'
 import { copyFile, mkdir, readdir, readFile } from 'node:fs/promises'
 import { dirname, join, resolve } from 'node:path'
-import { readAppFile } from 'vintage-frames/shell/pure'
+import { inspectAppFile } from 'system-online-sdk/pure'
 import { listingOf, pathOf } from './listing.ts'
 
 function fail(message: string): never {
@@ -23,8 +23,8 @@ const source = resolve(process.env.INIT_CWD ?? process.cwd(), given)
 process.chdir(join(import.meta.dirname, '..'))
 
 const bytes = new Uint8Array(await readFile(source))
-const file = await readAppFile(bytes)
-if (!file) fail(`${given} isn't an app file`)
+const file = await inspectAppFile(bytes)
+if (typeof file === 'string') fail(`${given} isn't an app file: ${file}`)
 const { name, version } = file.manifest
 const path = pathOf(file.manifest)
 
