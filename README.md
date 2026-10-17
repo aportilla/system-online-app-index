@@ -27,7 +27,7 @@ git push
 `apps/<id>/<version>/<Name>.png`. It refuses a file that isn't an app file,
 saying why, and a version that's already here: a published version never
 changes, so a fix is a new version. Cloudflare builds `main` and serves
-`dist/`.
+`dist/` at `https://apps.portill.io/`.
 
 The index keeps a build for each app API level. Before SystemOnline takes
 an SDK release that raises `APP_API_OLDEST`, build each application on it
