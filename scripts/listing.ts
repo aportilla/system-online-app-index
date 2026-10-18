@@ -5,7 +5,7 @@
  * hand them in.
  */
 
-import { compareVersions, inspectAppFile } from 'system-online-sdk/pure'
+import { checkSignature, compareVersions, inspectAppFile, judgeSignature } from 'system-online-sdk/pure'
 import type { AppManifest } from 'system-online-sdk/pure'
 
 /** The listing's own format. A store refuses one it doesn't know. */
@@ -47,6 +47,14 @@ export interface AppFileEntry {
   bytes: Uint8Array
 }
 
+/** Whose signatures the index takes. */
+export interface Signing {
+  /** The public keys it signs with, base64, as the SDK's generateSigningKeys() gives them. */
+  keys: readonly string[]
+  /** The files, by path, published before it signed, which stay unsigned. */
+  unsigned: readonly string[]
+}
+
 /** Where a version of an application is filed. */
 export const pathOf = ({ id, version, name }: Pick<AppManifest, 'id' | 'version' | 'name'>): string =>
   `apps/${id}/${version}/${name}.png`
@@ -57,10 +65,11 @@ const FILED = /^apps\/([^/.][^/]*)\/([^/.][^/]*)\/([^/.][^/]*\.png)$/
 /**
  * The listing of `files`, or a line for each file it refuses, naming the
  * file: one that isn't at apps/<id>/<version>/<Name>.png, isn't an app
- * file (with the SDK reader's reason), isn't at its manifest's path, or is
- * a second file for one id and version.
+ * file (with the SDK reader's reason), isn't at its manifest's path, isn't
+ * signed by one of `signing`'s keys (its unsigned files aside), or is a
+ * second file for one id and version.
  */
-export async function listingOf(files: readonly AppFileEntry[]): Promise<Listing | string[]> {
+export async function listingOf(files: readonly AppFileEntry[], signing: Signing): Promise<Listing | string[]> {
   const refused: string[] = []
   const versions = new Map<string, ListedVersion[]>()
   const held = new Map<string, string>()
@@ -78,6 +87,20 @@ export async function listingOf(files: readonly AppFileEntry[]): Promise<Listing
     const { id, name, version, author, description, requires, api, icon } = file.manifest
     if (path !== pathOf(file.manifest)) {
       refused.push(`${path}: it is ${name} ${version} (${id}), filed at ${pathOf(file.manifest)}`)
+      continue
+    }
+    const check = await checkSignature(bytes)
+    const { standing, key } = judgeSignature(check, { keys: signing.keys })
+    if (check.status === 'broken') {
+      refused.push(`${path}: its signature doesn't hold: ${check.reason}`)
+      continue
+    }
+    if (standing === 'untrusted') {
+      refused.push(`${path}: it's signed by ${key}, which isn't a key the index signs with`)
+      continue
+    }
+    if (standing === 'unsigned' && !signing.unsigned.includes(path)) {
+      refused.push(`${path}: it isn't signed; npm run add signs a file as it files it`)
       continue
     }
     const folder = path.slice(0, path.lastIndexOf('/'))

@@ -1,7 +1,8 @@
 /**
- * The index's build: reads every file under apps/ and writes dist/, the
- * files at their paths, index.json and _headers. A file it refuses fails
- * the build, named. Cloudflare runs it on every push to main.
+ * The index's build: reads every file under apps/, checks it and its
+ * signature, and writes dist/, the files at their paths, index.json and
+ * _headers. A file it refuses fails the build, named. It never signs.
+ * Cloudflare runs it on every push to main.
  */
 
 import { existsSync } from 'node:fs'
@@ -9,6 +10,7 @@ import { cp, mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { basename, join } from 'node:path'
 import { listingOf } from './listing.ts'
 import type { AppFileEntry } from './listing.ts'
+import { SIGNING } from './signing.ts'
 
 process.chdir(join(import.meta.dirname, '..'))
 
@@ -21,7 +23,7 @@ async function appFiles(): Promise<AppFileEntry[]> {
   return Promise.all(shown.map(async (path) => ({ path, bytes: new Uint8Array(await readFile(path)) })))
 }
 
-const listing = await listingOf(await appFiles())
+const listing = await listingOf(await appFiles(), SIGNING)
 if (Array.isArray(listing)) {
   for (const line of listing) console.error(line)
   process.exit(1)

@@ -23,7 +23,7 @@ git commit -m "Publish Meteors 0.3.1"
 git push
 ```
 
-`npm run add` reads the file's manifest and files it at
+`npm run add` reads the file's manifest, signs it, and files it at
 `apps/<id>/<version>/<Name>.png`. It refuses a file that isn't an app file,
 saying why, and a version that's already here: a published version never
 changes, so a fix is a new version. Cloudflare builds `main` and serves
@@ -33,6 +33,24 @@ The index keeps a build for each app API level. Before SystemOnline takes
 an SDK release that raises `APP_API_OLDEST`, build each application on it
 and publish the build here. At each SDK minor, move this repo's
 `system-online-sdk` range too, so it reads what the new SDK writes.
+
+## Signatures
+
+Every file is signed, so a desktop that holds the index's public key
+installs it without asking and offers its updates (the SDK's
+[`docs/APP-FILES.md` § Signing](https://github.com/aportilla/system-online-sdk/blob/main/docs/APP-FILES.md#signing)).
+
+- `npm run add` signs with the private key in
+  `~/.config/system-online/signing-key`, or in the file `SIGNING_KEY_FILE`
+  names. The key never leaves the machine that signs, and is never in this
+  repo.
+- `scripts/signing.ts` lists the public keys the index signs with, and
+  SystemOnline's trust holds the same. A new key goes in beside the old,
+  in both.
+- The build checks every file's signature and never signs. It refuses a
+  signature that doesn't hold, one by a key that isn't listed, and an
+  unsigned file, but for the four published before the index signed, which
+  `scripts/signing.ts` names. CI runs the build on every push.
 
 ## index.json
 
@@ -72,9 +90,10 @@ and publish the build here. At each SDK minor, move this repo's
 
 `npm run build` reads every file under `apps/` with the SDK's reader, and
 refuses, naming each one, a file that isn't an app file (saying why), one
-whose id, version or name isn't its path's, and a second file for one
-version. The manifest is the source of truth, so the listing can't say
-anything the files don't.
+whose id, version or name isn't its path's, one whose signature the index
+doesn't take (§ Signatures), and a second file for one version. The
+manifest is the source of truth, so the listing can't say anything the
+files don't.
 
 ## The host
 
@@ -91,7 +110,7 @@ Keep image optimization, such as Cloudflare's Polish, off for the host.
 
 | Script | What it does |
 | --- | --- |
-| `npm run add -- <file>` | files an app file at its path in `apps/` |
+| `npm run add -- <file>` | signs an app file and files it at its path in `apps/` |
 | `npm run build` | `dist/`: the files, `index.json` and `_headers` |
 | `npm test` | unit tests for the listing (`node --test`) |
 | `npm run typecheck` | `tsc` over the scripts |
